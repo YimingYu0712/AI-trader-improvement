@@ -71,6 +71,7 @@ export const FINANCIAL_NEWS_PAGE_SIZE = 4
 export const LEADERBOARD_LINE_COLORS = ['#d66a5f', '#d49e52', '#b8b15f', '#7bb174', '#5aa7a3', '#4e88b7', '#7a78c5', '#a16cb8', '#c66f9f', '#cb7a7a']
 
 export type LeaderboardChartRange = 'all' | '24h'
+export type LeaderboardChartMetric = 'return' | 'drawdown'
 
 export function getLeaderboardDays(chartRange: LeaderboardChartRange) {
   return chartRange === '24h' ? 1 : 7
@@ -119,7 +120,12 @@ function formatLeaderboardLabel(date: Date, chartRange: LeaderboardChartRange, l
   })
 }
 
-export function buildLeaderboardChartData(profitHistory: any[], chartRange: LeaderboardChartRange, language: Language) {
+export function buildLeaderboardChartData(
+  profitHistory: any[],
+  chartRange: LeaderboardChartRange,
+  language: Language,
+  chartMetric: LeaderboardChartMetric = 'return'
+) {
   const topAgents = profitHistory.slice(0, 10).map((agent: any) => ({
     ...agent,
     history: (agent.history || [])
@@ -166,19 +172,19 @@ export function buildLeaderboardChartData(profitHistory: any[], chartRange: Lead
     }
 
     topAgents.forEach((agent: any) => {
-      let latestReturn: number | null = null
+      let latestValue: number | null = null
       for (const entry of agent.history) {
         if (entry.date.getTime() <= bucketEndTimestamp) {
-          latestReturn = typeof entry.profit_percent === 'number'
-            ? entry.profit_percent
-            : entry.profit
+          latestValue = chartMetric === 'drawdown'
+            ? Number(entry.max_drawdown || 0)
+            : (typeof entry.profit_percent === 'number' ? entry.profit_percent : entry.profit)
         } else {
           break
         }
       }
 
-      if (latestReturn !== null) {
-        point[agent.name] = latestReturn
+      if (latestValue !== null) {
+        point[agent.name] = latestValue
       }
     })
 
@@ -201,10 +207,12 @@ export function LeaderboardTooltip({
   active,
   payload,
   label,
+  sortDescending = true,
 }: {
   active?: boolean
   payload?: any[]
   label?: string
+  sortDescending?: boolean
 }) {
   if (!active || !payload || payload.length === 0) {
     return null
@@ -212,7 +220,7 @@ export function LeaderboardTooltip({
 
   const sortedPayload = [...payload]
     .filter((entry) => typeof entry?.value === 'number')
-    .sort((a, b) => Number(b.value) - Number(a.value))
+    .sort((a, b) => sortDescending ? Number(b.value) - Number(a.value) : Number(a.value) - Number(b.value))
 
   return (
     <div style={{

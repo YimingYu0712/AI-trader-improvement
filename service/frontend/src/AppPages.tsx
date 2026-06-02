@@ -12,6 +12,7 @@ import {
   MARKETS,
   REFRESH_INTERVAL,
   SIGNALS_FEED_PAGE_SIZE,
+  type LeaderboardChartMetric,
   type LeaderboardChartRange,
   type MarketIntelNewsCategory,
   LeaderboardTooltip,
@@ -1991,6 +1992,7 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
   const [leaderboardPage, setLeaderboardPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [chartRange, setChartRange] = useState<LeaderboardChartRange>('24h')
+  const [chartMetric, setChartMetric] = useState<LeaderboardChartMetric>('return')
   const [metric, setMetric] = useState<'return' | 'risk' | 'collaboration' | 'quality'>('return')
   const [activeChallengeCount, setActiveChallengeCount] = useState(0)
   const { language } = useLanguage()
@@ -2038,8 +2040,8 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
   }
 
   const chartData = useMemo(
-    () => buildLeaderboardChartData(profitHistory, chartRange, language),
-    [profitHistory, chartRange, language]
+    () => buildLeaderboardChartData(profitHistory, chartRange, language, chartMetric),
+    [profitHistory, chartRange, language, chartMetric]
   )
   const topChartAgents = useMemo(() => profitHistory.slice(0, 10), [profitHistory])
   const leaderboardTotalPages = Math.max(1, Math.ceil(totalTraders / LEADERBOARD_PAGE_SIZE))
@@ -2050,6 +2052,10 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
     ['risk', language === 'zh' ? '风险调整' : 'Risk Adjusted'],
     ['collaboration', language === 'zh' ? '协作' : 'Collaboration'],
     ['quality', language === 'zh' ? '质量评分' : 'Quality']
+  ] as const
+  const chartMetricOptions = [
+    ['return', language === 'zh' ? '收益' : 'Return'],
+    ['drawdown', language === 'zh' ? '最大回撤' : 'Max Drawdown']
   ] as const
 
   const metricValue = (agent: any) => {
@@ -2122,9 +2128,28 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
         <div className="card" style={{ marginBottom: '20px', padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
             <h3 style={{ fontSize: '16px', margin: 0 }}>
-              {language === 'zh' ? '收益率曲线' : 'Return Chart'}
+              {chartMetric === 'drawdown'
+                ? (language === 'zh' ? '最大回撤曲线' : 'Max Drawdown Chart')
+                : (language === 'zh' ? '收益率曲线' : 'Return Chart')}
             </h3>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {chartMetricOptions.map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setChartMetric(value)}
+                  style={{
+                    padding: '4px 12px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    background: chartMetric === value ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                    color: chartMetric === value ? '#fff' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
               <button
                 onClick={() => {
                   setChartRange('all')
@@ -2170,9 +2195,14 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-tertiary)" />
                   <XAxis dataKey="time" stroke="var(--text-secondary)" tick={{ fontSize: 10 }} minTickGap={24} />
-                  <YAxis stroke="var(--text-secondary)" tick={{ fontSize: 12 }} tickFormatter={(value: any) => `${Number(value).toFixed(0)}%`} />
+                  <YAxis
+                    stroke="var(--text-secondary)"
+                    tick={{ fontSize: 12 }}
+                    domain={chartMetric === 'drawdown' ? [0, 'auto'] : undefined}
+                    tickFormatter={(value: any) => `${Number(value).toFixed(0)}%`}
+                  />
                   <Tooltip
-                    content={<LeaderboardTooltip />}
+                    content={<LeaderboardTooltip sortDescending={chartMetric !== 'drawdown'} />}
                   />
                   {topChartAgents.map((agent: any, idx: number) => (
                     <Line
@@ -2258,6 +2288,7 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
             {profitHistory.map((agent: any, idx: number) => {
               const rank = leaderboardOffset + idx + 1
               const podiumIndex = rank - 1
+              const currentDrawdown = agent.max_drawdown ?? agent.metric_snapshot?.max_drawdown ?? 0
               return (
               <div
                 key={agent.agent_id}
@@ -2293,7 +2324,7 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', fontSize: '14px' }}>
                   <div>
                     <span style={{ color: 'var(--text-secondary)' }}>
                       {language === 'zh' ? '收益率' : 'Return'}: </span>
@@ -2307,6 +2338,11 @@ export function LeaderboardPage({ token }: { token?: string | null }) {
                     <span style={{ color: 'var(--text-muted)', marginLeft: '8px', fontSize: '12px' }}>
                       (${agent.total_profit?.toFixed(2) || '0.00'})
                     </span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      {language === 'zh' ? '最大回撤' : 'Max DD'}: </span>
+                    <span style={{ fontWeight: 700 }}>{formatReturnPercent(currentDrawdown)}</span>
                   </div>
                   <div>
                     <span style={{ color: 'var(--text-secondary)' }}>
