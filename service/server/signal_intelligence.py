@@ -1,3 +1,4 @@
+import math
 import re
 from collections import Counter, defaultdict
 from typing import Any, Dict, List, Optional
@@ -50,6 +51,92 @@ def safe_float(value: Any) -> Optional[float]:
     except (TypeError, ValueError):
         return None
 
+def normalize_log(value: float, max_value: float) -> float:
+    """
+    Normalize a value with log scaling.
+
+    Log scaling prevents extremely large copy counts from dominating
+    the ranking too aggressively.
+    """
+    if max_value <= 0:
+        return 0.0
+
+    return math.log1p(max(value, 0)) / math.log1p(max_value)
+
+
+def add_influence_scoring(source_agent_rankings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Add optimized influence and crowding risk scores.
+
+    The score combines:
+    - copy count
+    - copy multiplier
+    - average quality score
+    - original signal activity
+    """
+
+    if not source_agent_rankings:
+        return source_agent_rankings
+
+    max_copy_count = max(row["copy_count"] for row in source_agent_rankings)
+    max_copy_multiplier = max(row["copy_multiplier"] for row in source_agent_rankings)
+    max_original_count = max(row["original_signal_count"] for row in source_agent_rankings)
+
+    quality_values = [
+        row["avg_quality"]
+        for row in source_agent_rankings
+        if row["avg_quality"] is not None
+    ]
+
+    max_quality = max(quality_values) if quality_values else 0
+
+    for row in source_agent_rankings:
+        copy_count_score = normalize_log(row["copy_count"], max_copy_count)
+        copy_multiplier_score = normalize_log(row["copy_multiplier"], max_copy_multiplier)
+        original_activity_score = normalize_log(row["original_signal_count"], max_original_count)
+
+        quality_score = (
+            row["avg_quality"] / max_quality
+            if max_quality > 0 and row["avg_quality"] is not None
+            else 0
+        )
+
+        influence_score = (
+            0.45 * copy_count_score
+            + 0.25 * copy_multiplier_score
+            + 0.20 * quality_score
+            + 0.10 * original_activity_score
+        )
+
+        crowding_score = (
+            0.65 * copy_count_score
+            + 0.35 * copy_multiplier_score
+        )
+
+        if (
+            crowding_score >= 0.75
+            or row["copy_count"] >= 30
+            or row["copy_multiplier"] >= 10
+        ):
+            crowding_risk_level = "high"
+        elif (
+            crowding_score >= 0.45
+            or row["copy_count"] >= 10
+            or row["copy_multiplier"] >= 5
+        ):
+            crowding_risk_level = "medium"
+        else:
+            crowding_risk_level = "low"
+
+        row["copy_count_score"] = round(copy_count_score, 4)
+        row["copy_multiplier_score"] = round(copy_multiplier_score, 4)
+        row["quality_score_component"] = round(quality_score, 4)
+        row["original_activity_score"] = round(original_activity_score, 4)
+        row["influence_score"] = round(influence_score, 4)
+        row["crowding_score"] = round(crowding_score, 4)
+        row["crowding_risk_level"] = crowding_risk_level
+
+    return source_agent_rankings
 
 def analyze_signal_intelligence(signals: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
@@ -184,15 +271,17 @@ def analyze_signal_intelligence(signals: List[Dict[str, Any]]) -> Dict[str, Any]
             "sides": sides,
         })
 
+    source_agent_rankings = add_influence_scoring(source_agent_rankings)
+
     source_agent_rankings = sorted(
         source_agent_rankings,
-        key=lambda row: row["total_influence"],
+        key=lambda row: row["influence_score"],
         reverse=True
     )
 
     crowded_trade_alerts = [
         row for row in source_agent_rankings
-        if row["copy_count"] >= 30 or row["copy_multiplier"] >= 10
+        if row["crowding_risk_level"] in {"high", "medium"}
     ]
 
     return {
