@@ -74,6 +74,10 @@ def main():
             round(row["copy_multiplier"], 2),
             "avg_quality:",
             row["avg_quality"],
+            "influence_score:",
+            row.get("influence_score"),
+            "risk:",
+            row.get("crowding_risk_level"),
         )
 
     print("\n=== Crowded Trade Alerts ===")
