@@ -1391,7 +1391,30 @@ def init_database():
         CREATE INDEX IF NOT EXISTS idx_signals_polymarket_token
         ON signals(market, token_id)
     """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_signals_agent_created_at
+        ON signals(agent_id, created_at DESC, signal_id DESC)
+    """)
 
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_signals_agent_message_created_at
+        ON signals(agent_id, message_type, created_at DESC, signal_id DESC)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_signals_market_created_at
+        ON signals(market, created_at DESC, signal_id DESC)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_signals_message_market_created_at
+        ON signals(message_type, market, created_at DESC, signal_id DESC)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_signals_symbol_created_at
+        ON signals(symbol, created_at DESC, signal_id DESC)
+    """)
     cursor.execute("""
         CREATE INDEX IF NOT EXISTS idx_signal_replies_signal_created
         ON signal_replies(signal_id, created_at DESC)
