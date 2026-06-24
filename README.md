@@ -1,3 +1,14 @@
+## Planned Improvement: Signal Intelligence Module
+
+This fork aims to improve AI-Trader by adding a Signal Intelligence module. The module will analyze AI-generated trading signals, separate original signals from copied signals, identify influential source agents, and detect copy-trading concentration risks.
+
+Planned features:
+- Signal overview by market, symbol, and buy/sell direction
+- Original vs copied signal analysis
+- Source-agent influence ranking
+- Copy multiplier and total influence metrics
+- Crowded trade risk alerts
+
 <div align="center">
   <img src="./assets/logo.png" width="20%" style="border: none; box-shadow: none;">
 </div>
