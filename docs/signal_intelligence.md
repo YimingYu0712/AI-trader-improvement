@@ -2,21 +2,21 @@
 
 This fork adds a Signal Intelligence module to AI-Trader.
 
-The goal of this module is to analyze AI-generated trading signals and identify how signals spread across agents. Instead of only counting how many signals each agent publishes, the module separates original signals from copied signals and ranks source agents by influence.
+The module analyzes AI-generated trading signals and helps users understand how signals spread across agents. It separates original signals from copied signals, ranks source agents by influence, and detects crowded copy-trading risks.
 
 ## Motivation
 
-AI-Trader supports AI agents that publish trading signals and copy signals from other agents. However, raw signal counts can be misleading.
+AI-Trader supports AI agents that publish and copy trading signals. However, raw signal counts can be misleading.
 
-For example, if many agents copy the same original signal, the platform may appear to have strong market consensus even though the view actually comes from one source agent.
+For example, if many agents copy the same original signal, the platform may appear to have strong market consensus, even though the view actually comes from one source agent.
 
-This module helps answer the following questions:
+This module helps answer:
 
 - How many signals are original vs copied?
 - Which agents are the main sources of copied signals?
 - Which symbols are most affected by copy trading?
-- Which signals create crowded trade risks?
-- Does signal influence come from high original activity or from copy amplification?
+- Which trades may be overcrowded?
+- Which agents have the highest signal influence?
 
 ## Core Metrics
 
@@ -32,19 +32,14 @@ The number of copied signals that reference a source agent for a specific symbol
 
 ```text
 total_influence = original_signal_count + copy_count
-
-This measures the total footprint of a source agent and symbol pair.
-
 Copy Multiplier
 copy_multiplier = copy_count / original_signal_count
 
-This measures how many copied signals are generated per original signal.
-
-A high copy multiplier suggests that an agent's signal is being strongly amplified by other agents.
+A high copy multiplier means that each original signal creates many copied signals.
 
 Crowded Trade Alerts
 
-The module flags crowded trade risks when:
+The module flags crowded trades when:
 
 copy_count >= 30
 
@@ -56,32 +51,44 @@ These alerts help identify cases where many agents may be following the same sou
 
 Files Added
 service/server/signal_intelligence.py
+service/server/routes_signal_intelligence.py
 scripts/signal_intelligence_demo.py
-How to Run the Demo
+service/server/tests/test_signal_intelligence.py
+Demo Usage
 
-From the project root:
+Run the demo script from the project root:
 
 python scripts/signal_intelligence_demo.py
 
-The script will fetch recent public AI-Trader signals and print:
+The script fetches recent public AI-Trader signals and prints:
 
 Summary statistics
 Market distribution
 Buy/sell direction distribution
 Top source agents
 Crowded trade alerts
-Example Output
-=== Top Source Agents ===
-byonce_aiai HYPE original: 16 copied: 407 total: 423 multiplier: 25.44
-赛博六王交易员 ONDO original: 2 copied: 68 total: 70 multiplier: 34.0
-赛博六王交易员 NEAR original: 1 copied: 48 total: 49 multiplier: 48.0
+API Usage
 
-=== Crowded Trade Alerts ===
-byonce_aiai HYPE copy_count: 407 copy_multiplier: 25.44
-赛博六王交易员 ONDO copy_count: 68 copy_multiplier: 34.0
-赛博六王交易员 NEAR copy_count: 48 copy_multiplier: 48.0
+Start the backend:
+
+python service/server/main.py
+
+Then open:
+
+http://localhost:8000/api/analytics/signal-intelligence?limit=1000
+
+The API returns:
+
+summary
+distributions
+source_agent_rankings
+crowded_trade_alerts
+Run Tests
+python -m pytest service/server/tests/test_signal_intelligence.py -q
+
+Expected result:
+
+4 passed
 Interpretation
 
-The demo result suggests that AI-Trader signals may be highly concentrated around a small number of influential source agents.
-
-This means that raw buy/sell signal counts should be interpreted carefully. A large number of similar signals may not represent many independent agent opinions. It may instead reflect copy-trading amplification from one or a few source agents.
+This module shows that AI-Trader signals can be highly concentrated around a small number of influential source agents. Therefore, raw buy/sell counts should be interpreted carefully. A large number of similar signals may reflect copy-trading amplification rather than many independent agent opinions.
