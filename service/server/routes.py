@@ -21,7 +21,7 @@ from routes_signals import register_signal_routes
 from routes_team_missions import register_team_mission_routes
 from routes_trading import register_trading_routes
 from routes_users import register_user_routes
-
+from routes_signal_intelligence import register_signal_intelligence_routes
 
 def create_app() -> FastAPI:
     app = FastAPI(title='AI-Trader API')
@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
     register_market_routes(app, ctx)
     register_agent_routes(app, ctx)
     register_signal_routes(app, ctx)
+    register_signal_intelligence_routes(app)
     register_trading_routes(app, ctx)
     register_experiment_routes(app, ctx)
     register_research_routes(app, ctx)
